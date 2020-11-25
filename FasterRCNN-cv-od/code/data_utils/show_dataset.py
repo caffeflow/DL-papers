@@ -6,5 +6,5 @@ with open(xml_path) as f:
     # print(soup)
     print(soup.find('filename').text)
     floder = soup.floder.text
-    
+
 # %%
