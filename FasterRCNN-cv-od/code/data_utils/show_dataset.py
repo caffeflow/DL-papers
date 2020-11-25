@@ -5,6 +5,5 @@ with open(xml_path) as f:
     soup = BeautifulSoup(f, 'xml')
     # print(soup)
     print(soup.find('filename').text)
-    floder = soup.floder.text
-
+    
 # %%
