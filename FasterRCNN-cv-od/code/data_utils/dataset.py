@@ -13,6 +13,8 @@ from torchvision.transforms.functional import scale
 # img = tvtsfunc.resize(img,[50,100])
 # print(img.shape)
 
+# https://cloud.tencent.com/developer/article/1630474
+
 
 class Dataset(data.Dataset):
     def __init__(self,):
