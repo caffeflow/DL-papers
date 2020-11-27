@@ -1,17 +1,16 @@
-"""
-    transform 图片和box是同步的进行的.
-
-    """
-
-from numpy.lib.shape_base import take_along_axis
+import numpy as np
+import torch
+from torch._C import ListType, TensorType
+import torch.nn as nn
 from torch.utils import data
-import torchvision as tv
-import torchvision.transforms.functional as tvfunc
+import torchvision.transforms as tvtsf
+import torchvision.transforms.functional as tvtsfunc
 import PIL.Image as Image
+from torchvision.transforms.functional import scale
 # img = Image.open('faster-speed.jpg')
 # print(img.size)
-# img = tvfunc.to_tensor(img)
-# img = tvfunc.resize(img,[50,100])
+# img = tvtsfunc.to_tensor(img)
+# img = tvtsfunc.resize(img,[50,100])
 # print(img.shape)
 
 
@@ -27,30 +26,32 @@ class Dataset(data.Dataset):
     def __len__(self):
         pass
 
-    def transform_func(self, img, bbox, min_size=600, max_size=1000):
-        # PIL Image(RGB) or Tensor
-        # to Tensor
-        img = tvfunc.to_tensor(img)
-        bbox = tvfunc.to_tensor(bbox)
-        # random
-        import random
-        if random.choice([True, False]):
-            img = tvfunc.vflip(img)
-            bbox = tvfunc.vflip(bbox)
-        if random.choice([True, False]):
-            img = tvfunc.hflip(img)
-            bbox = tvfunc.hflip(bbox)
-        # resize
-        c, h, w = img.shape
-        scale = min(min_size/min(h, w), max_size/max(h, w))
-        img = tvfunc.resize(img, [h*scale, w*scale])
-        
-        # normalize
-        tvfunc.normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225])
 
+class Transform(object):
+    def __init__(self, min_size=600, max_size=1000):
+        self.min_size = min_size
+        self.max_size = max_size
 
+    @ staticmethod
+    def inverse_normalize(img: torch.Tensor, mean: list = [0.485, 0.456, 0.406], std: list = [0.229, 0.224, 0.225]) -> torch.Tensor:
+        ### 去正则化, img输出维度为[[R,G,B],H,W]
+        img = img + np.array(mean).reshape(-1, 1, 1)  # 维度一致才相加(h,w方向为广播复制)
+        img = img * np.array(std).reshape(-1, 1, 1)
+        img = img.clip(min=0, max=1) * 255  # 裁剪边缘
+        return img
 
-# ######## bbox ##############
-def resize_bbox(bbox,in_size,out_size):
-    
+    # img缩放,正则化,张量化
+    @ staticmethod
+    def preprocess(self, img: Image.Image, mean: list = [0.485, 0.456, 0.406], std: list = [0.229, 0.224, 0.225], min_size: int = 600, max_size: int = 1000) -> torch.Tensor:
+        w, h = img.size  # 注意返回值顺序
+        scale1 = min_size / min(w, h)
+        scale2 = max_size / max(w, h)
+        scale = min(scale1, scale2)
+        img = tvtsfunc.resize(img, [h*scale, w*scale])
+        img = tvtsfunc.to_tensor(img)
+        img = img / 255.
+        img = tvtsfunc.normalize(img, mean=mean, std=std)
+        return img
+
+    def __call__(self, img, bbox, label):
+        _, H, W = img.shape
